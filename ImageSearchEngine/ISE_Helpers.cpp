@@ -19,15 +19,30 @@ void ReleaseAll__ImRawIm(unsigned* vwI, unsigned* vwI_low, json_t* myJSON, strin
 	delete ES_id;
 }
 
-void WriteCSV(vector<vector<string>> testSet, char* fileName)
+void WriteCSV(vector<vector<string>> dataVV, char* fileName, int fileNum)
 {
 	ofstream myfile;
 	string CSV_Path = fileName;
 	myfile.open(CSV_Path.c_str());
-	for (int i = 0; i < testSet.size(); i++){
+	for (int i = 0; i < dataVV.size(); i++){
 		string lineStr = "";
-		for (int ii = 0; ii < 276; ii++){
-			lineStr += testSet[i][ii] + ";";
+		for (int ii = 0; ii < fileNum; ii++){
+			lineStr += dataVV[i][ii] + ";";
+		}
+		lineStr += "\n";
+		myfile << lineStr;
+	}
+}
+
+void WriteCSV(vector<vector<float>> dataVV, char* fileName, int fileNum)
+{
+	ofstream myfile;
+	string CSV_Path = fileName;
+	myfile.open(CSV_Path.c_str());
+	for (int i = 0; i < dataVV.size(); i++){
+		string lineStr = "";
+		for (int ii = 0; ii < fileNum; ii++){
+			lineStr += to_string(dataVV[i][ii]) + ";";
 		}
 		lineStr += "\n";
 		myfile << lineStr;
@@ -147,21 +162,20 @@ void ImportRawImage(Path myPath, ES_params myES, TVoctreeVLFeat* VT, string dscP
 }
 
 void QueryRawImage(Path myPath, ES_params myES, TVoctreeVLFeat* VT, string dscPath, Image_Info myIm,
-	uchar_descriptors my_desc, vector<string> &testSet, string &returnFileName)
+	uchar_descriptors *my_desc, vector<string> &testSet, vector<float> &scoresPP, vector<float> &scoresELK, string &returnFileName)
 {
-	unsigned int * vwI = new unsigned int[my_desc.get_num_descriptors()];
+	unsigned int * vwI = new unsigned int[my_desc->get_num_descriptors()];
 	json_t* myJSON = json_object();
 	string vwS = "";
 	const char * ES_id = new char;
 	vector<string> dscPathsV;
-	vector<float> scoresV;
 
-	if (my_desc.get_num_descriptors() > 0)
+	if (my_desc->get_num_descriptors() > 0)
 	{
 		try
 		{
-			VT->quantize_multi(vwI, my_desc.get_data(), my_desc.get_num_descriptors(), 61);
-			for (unsigned int s = 0; s < my_desc.get_num_descriptors(); s++)
+			VT->quantize_multi(vwI, my_desc->get_data(), my_desc->get_num_descriptors(), 61);
+			for (unsigned int s = 0; s < my_desc->get_num_descriptors(); s++)
 				vwS += " " + int2string(int(vwI[s]));
 
 			if (vwS != "")
@@ -169,8 +183,8 @@ void QueryRawImage(Path myPath, ES_params myES, TVoctreeVLFeat* VT, string dscPa
 				printf("nok \n");
 				getJSON_query_image(myJSON, vwS, "words_string");
 				//TODO: add scores at ES_post_query
-				ES_post_query(myES, myJSON, myIm, testSet, dscPathsV, scoresV);
-				post_process_step(my_desc, dscPathsV, testSet, scoresV, 10);
+				ES_post_query(myES, myJSON, myIm, testSet, dscPathsV, scoresELK);
+				postProcess(my_desc, dscPathsV, testSet, scoresPP, 10);
 
 				printf("ok \n");
 			}
@@ -182,6 +196,8 @@ void QueryRawImage(Path myPath, ES_params myES, TVoctreeVLFeat* VT, string dscPa
 	}
 	try
 	{
+		dscPathsV.clear();
+		dscPathsV.shrink_to_fit();
 		ReleaseAll__ImRawIm(vwI, myJSON, vwS, ES_id);
 	}
 	catch (exception e)
@@ -190,14 +206,14 @@ void QueryRawImage(Path myPath, ES_params myES, TVoctreeVLFeat* VT, string dscPa
 	}
 }
 
-int post_process_step(uchar_descriptors query, vector<string> dscV, vector<string> fnV, vector<float> scoresV, int numEsReturns)
+int postProcess(uchar_descriptors *query, vector<string> dscV, vector<string> fnV, 
+	vector<float> &scores, int numEsReturns)
 {
-	vector<float> scores;
 	std::vector<float> scoresSorted;
 	std::vector<int> scoreRank;
 	Mat descriptorQuery;
-	query.get_descriptors(descriptorQuery);
-	std::vector<Point2f> coordsQuery = query.getCoords();
+	query->get_descriptors(descriptorQuery);
+	std::vector<Point2f> coordsQuery = query->getCoords();
 	//std::vector<float> oriQuery, scaleQuery;
 	//TODO: runOptions Create
 	//TODO: runOptions Create
@@ -206,7 +222,7 @@ int post_process_step(uchar_descriptors query, vector<string> dscV, vector<strin
 	//scores.resize(numCorr);
 
 #if defined _OPENMP
-	//#pragma omp parallel for ordered schedule(dynamic)
+	#pragma omp parallel for ordered schedule(dynamic)
 #endif
 	for (int i = 0; i<numEsReturns; i++)
 	{
@@ -216,13 +232,17 @@ int post_process_step(uchar_descriptors query, vector<string> dscV, vector<strin
 		{
 			uchar_descriptors matchDsc(dscV[i].c_str(), AKAZE_FEATS);
 			matchDsc.read_dsc();
-			Mat descriptorMatch;
-			matchDsc.get_descriptors(descriptorMatch);
+			Mat descriptorMatch = Mat(matchDsc.get_num_descriptors(), matchDsc.getFeatureSize(), CV_8UC1);;
+			matchDsc.getDataAsMat__ReadMode(descriptorMatch);
 			vector<Point2f> coordsMatch = matchDsc.getCoords();
 
 			// Match with FLANN
 			std::vector<DMatch > matches, good_matches;
-			cv_FLANN_Matcher(descriptorQuery, descriptorMatch, matches, good_matches);
+			if (descriptorQuery.type() == 0)  descriptorQuery.convertTo(descriptorQuery, CV_32F);
+			if (descriptorMatch.type() == 0)  descriptorMatch.convertTo(descriptorMatch, CV_32F);
+			
+			if (descriptorQuery.type() == descriptorMatch.type() && descriptorQuery.cols == descriptorMatch.cols)
+				cv_FLANN_Matcher(descriptorQuery, descriptorMatch, matches, good_matches);
 			// TODO : compute H using estimate_homography - shown below
 			// DONE : compute similarity
 			double score;
@@ -261,13 +281,10 @@ int post_process_step(uchar_descriptors query, vector<string> dscV, vector<strin
 	//	sortedMatchList[i].fileName = runOptions.matchList[newInd].fileName;
 	//	sortedMatchList[i].label = runOptions.matchList[newInd].label;
 	//}
-
-
 	descriptorQuery.release();
 	coordsQuery.clear();
 	scoresSorted.clear();
 	scoreRank.clear();
-	scores.clear();
 
 	return 0;
 }

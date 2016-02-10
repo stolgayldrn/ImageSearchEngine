@@ -34,6 +34,7 @@ int main()
 	TVoctreeVLFeat* VT_low = new TVoctreeVLFeat;
 	vector<string> imgList, dscList, foldList;
 	vector<vector<string>> testSet;
+	vector<vector<float>> scorePP_set, scoreELK_set;
 	long start = clock();
 	double duration;
 	unsigned int err_count = 0;
@@ -110,15 +111,21 @@ int main()
 	//*/
 	
 	///*
-	for (unsigned int f = 0; f < foldList.size(); f++)
+	//for (unsigned int f = 0; f < foldList.size(); f++)
+	for (unsigned int f = 1; f < 2; f++)
 	{
 		String imgFoldPath;
 		imgFoldPath = myPath.DataSet + "/" + foldList[f]  ;
 		GET_DirectoryImages(imgFoldPath.c_str(), imgList);
 		vector<string> testSetFold;
+		vector<float> scoresPP__F, scoresELK__F;
 		testSetFold.push_back(foldList[f] + ".jpg");
-		for (int i = 0; i < 11*25; i++)
+		for (int i = 0; i < 11 * 25; i++)
+		{
 			testSetFold.push_back("-1");
+			scoresELK__F.push_back(-1);
+			scoresPP__F.push_back(-1);
+		}
 
 			omp_set_dynamic(0);     // Explicitly disable dynamic teams
 			omp_set_num_threads(8); // Use 4 threads for all consecutive parallel regions
@@ -129,30 +136,43 @@ int main()
 				Image_Info myIm;
 				ImageConfig(imgList, m, imgPath.c_str(), myIm);
 				string returnImage;
-
+				
 				if (IS_ImageFile(imgPath.c_str()))
 				{
 					try
 					{
 						vector<string> testIm;
+						vector<float> scoresPP, scoresELK;
 						uchar_descriptors my_desc(imgPath.c_str(), "NoDSC", AKAZE_FEATS);
 						my_desc.extract_AKAZE_feats();
 						//uchar_descriptors my_desc2(imgPath.c_str(), "NoDSC", AKAZE_FEATS);
 						//my_desc2.extract_AKAZE_low_feats();
-
-						QueryRawImage(myPath, myES, VT, "NoDSC", myIm, my_desc, testIm, returnImage);
+						scoresELK.push_back(atof(myIm.fileName.c_str()));
+						scoresPP.push_back(atof(myIm.fileName.c_str()));
+						QueryRawImage(myPath, myES, VT, "NoDSC", myIm, &my_desc, testIm, 
+							scoresPP, scoresELK, returnImage);
+						printf("%d\n", m);
 						if (testIm.size() == 11)
 						{
 							for (int i = 0; i < 11; i++)
-								testSetFold[ (m*11) + i + 1 ] = (testIm[i]);
+							{
+								testSetFold[(m * 11) + i + 1]	=	testIm[i];
+								scoresELK__F[(m * 11) + i + 1]	=	scoresELK[i];
+								scoresPP__F[(m * 11) + i + 1]	=	scoresPP[i];
+							}
 							
-							testIm.clear();
-							testIm.shrink_to_fit();
+							testIm.clear();testIm.shrink_to_fit();
+							scoresPP.clear();scoresPP.shrink_to_fit();
+							scoresELK.clear();scoresELK.shrink_to_fit();
 						}
 						else
 						{
 							for (int i = 0; i < 11; i++)
+							{
 								testSetFold.push_back("-1");
+								scoresELK__F.push_back(-1);
+								scoresPP__F.push_back(-1);
+							}
 						}
 					}
 					catch (exception e)
@@ -162,10 +182,14 @@ int main()
 				}
 			}
 			testSet.push_back(testSetFold);
-			testSetFold.clear();
-			testSetFold.shrink_to_fit();
-			imgList.clear();
-			imgList.shrink_to_fit();
+			testSetFold.clear();testSetFold.shrink_to_fit();
+
+			scoreELK_set.push_back(scoresELK__F);
+			scorePP_set.push_back(scoresPP__F);
+			scoresELK__F.clear(); scoresELK__F.shrink_to_fit();
+			scoresPP__F.clear(); scoresPP__F.shrink_to_fit();
+
+			imgList.clear();imgList.shrink_to_fit();
 			if (f % 5 == 0)
 			{
 				double num = (f*100.00 / 1000);
@@ -174,7 +198,9 @@ int main()
 	}
 	foldList.clear();
 	foldList.shrink_to_fit();
-	WriteCSV(testSet,"flicker10K_test_akaze__33_LEAK.csv");
+	WriteCSV(testSet, "TESTIM33.csv", 276);
+	WriteCSV(scoreELK_set, "TESTIM33_scoreELK.csv", 276);
+	WriteCSV(scorePP_set, "TESTIM33_scorePP.csv", 276);
 	//*/
 	duration = clock() - start;
 	delete VT;
