@@ -53,32 +53,33 @@ void paramsConfig(Path &myPath, ES_params &myES)
 {
 	myPath.dscFoldName = "dsc_akaze2";
 	myPath.dscFoldName2 = "dsc_akaze_low";
-	myPath.DataSet = "C:/ImageSearch/TEST_IM_33";
+	myPath.DataSet = "C:/ImageSearch/Face Reco Dataset/TestFR01";
 	myPath.imgFoldName = "images";
 	myPath.subFolderingLevel = 2;
 	myPath.VocTree = "C:/ImageSearch/VT_Trees/VT_flicker500K_AKAZE_middle_tree_S2_P";
 	myPath.VocTreeLow = "C:/ImageSearch/VT_Trees/VT_flicker500K_AKAZE_small_tree_S2_P";
 
 	myES.index = "flicker1m_test2";
-	myES.type = "akaze";
+	myES.type = "faces4";
 	myES.url = "http://172.16.10.202:9200";
 	myES.userPWD = "";
 }
 
-void ImageConfig(vector<string> vList, int m, string imagePath, Image_Info& myIm)
+void ImageConfig(vector<string> vList, int m, string imagePath, Image_Info& myIm, bool imgPath)
 {
-	myIm.dataSet = "flicker1M";
+	myIm.dataSet = "faceReco";
 	myIm.dataSubSet = "";
-	myIm.descriptorType = "akaze";
+	myIm.descriptorType = "faces";
 	myIm.encoding = "jpg";
+	myIm.fileName = (imgPath) ? vList[m] : vList[m].substr(0, vList[m].length() - 4);
 	//myIm.fileName = vList[m];
-	myIm.fileName = vList[m].substr(0, vList[m].length() - 4);
+	//myIm.fileName = vList[m].substr(0, vList[m].length() - 4);
 	myIm.height = 0.0;
 	myIm.width = 0.0;
 	myIm.Import = "true";
 	myIm.Query = "false";
 	myIm.path = imagePath;
-	myIm.source_type = "flicker1M";
+	myIm.source_type = "http://robotics.csie.ncku.edu.tw/Databases/FaceDetect_PoseEstimate.htm";
 }
 
 void ImportRawImage(Path myPath, ES_params myES, TVoctreeVLFeat* VT, string dscPath,
@@ -162,13 +163,14 @@ void ImportRawImage(Path myPath, ES_params myES, TVoctreeVLFeat* VT, string dscP
 }
 
 void QueryRawImage(Path myPath, ES_params myES, TVoctreeVLFeat* VT, string dscPath, Image_Info myIm,
-	uchar_descriptors *my_desc, vector<string> &testSet, vector<float> &scoresPP, vector<float> &scoresELK, string &returnFileName)
+	uchar_descriptors *my_desc, vector<string> &testSet, vector<float> &scoresPP, vector<float> &scoresELK)
 {
 	unsigned int * vwI = new unsigned int[my_desc->get_num_descriptors()];
 	json_t* myJSON = json_object();
 	string vwS = "";
 	const char * ES_id = new char;
 	vector<string> dscPathsV;
+	int totalNumELK;
 
 	if (my_desc->get_num_descriptors() > 0)
 	{
@@ -183,8 +185,23 @@ void QueryRawImage(Path myPath, ES_params myES, TVoctreeVLFeat* VT, string dscPa
 				printf("nok \n");
 				getJSON_query_image(myJSON, vwS, "words_string");
 				//TODO: add scores at ES_post_query
-				ES_post_query(myES, myJSON, myIm, testSet, dscPathsV, scoresELK);
-				postProcess(my_desc, dscPathsV, testSet, scoresPP, 10);
+				ES_post_query(myES, myJSON, myIm, testSet, dscPathsV, scoresELK, totalNumELK);
+				
+				//ELK score filtering//////////////////////////
+				double sum = 0;
+				int forLimit = 0;
+				vector<float> normELKScore;
+				forLimit = totalNumELK < 10 ? totalNumELK : 10;
+				for (int i = 0; i < forLimit; i++)
+					sum += scoresELK[i];
+				for (int i = 0; i < forLimit; i++)
+				{
+					float scoreNorm = scoresELK[i] / sum;
+					if (scoreNorm > 0.08)
+						normELKScore.push_back(scoreNorm);
+				}
+				////////////////////////////////////////////////
+				postProcess(my_desc, dscPathsV, testSet, scoresPP, normELKScore.size());
 
 				printf("ok \n");
 			}
@@ -207,7 +224,7 @@ void QueryRawImage(Path myPath, ES_params myES, TVoctreeVLFeat* VT, string dscPa
 }
 
 int postProcess(uchar_descriptors *query, vector<string> dscV, vector<string> fnV, 
-	vector<float> &scores, int numEsReturns)
+	vector<float> &scores, int numELK)
 {
 	std::vector<float> scoresSorted;
 	std::vector<int> scoreRank;
@@ -224,16 +241,26 @@ int postProcess(uchar_descriptors *query, vector<string> dscV, vector<string> fn
 #if defined _OPENMP
 	#pragma omp parallel for ordered schedule(dynamic)
 #endif
-	for (int i = 0; i<numEsReturns; i++)
+	for (int i = 0; i<numELK; i++)
 	{
 		//int threadId = omp_get_thread_num();
 		// read the signature of the descriptor
-		if (IS_DscFile(dscV[i].c_str()))
+		if (IS_DscFile(dscV[i].c_str()) || IS_ImageFile(dscV[i].c_str()))
 		{
-			uchar_descriptors matchDsc(dscV[i].c_str(), AKAZE_FEATS);
-			matchDsc.read_dsc();
-			Mat descriptorMatch = Mat(matchDsc.get_num_descriptors(), matchDsc.getFeatureSize(), CV_8UC1);;
-			matchDsc.getDataAsMat__ReadMode(descriptorMatch);
+			uchar_descriptors matchDsc(dscV[i].c_str(), dscV[i].c_str(), AKAZE_FEATS);
+			Mat descriptorMatch;
+			if (IS_DscFile(dscV[i].c_str()))
+			{
+				matchDsc.read_dsc();
+				descriptorMatch = Mat(matchDsc.get_num_descriptors(), matchDsc.getFeatureSize(), CV_8UC1);;
+				matchDsc.getDataAsMat__ReadMode(descriptorMatch);
+			}
+			else if (IS_ImageFile(dscV[i].c_str()))
+			{
+				matchDsc.extract_AKAZE_feats();
+				matchDsc.get_descriptors(descriptorMatch);
+			}
+			
 			vector<Point2f> coordsMatch = matchDsc.getCoords();
 
 			// Match with FLANN

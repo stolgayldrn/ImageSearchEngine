@@ -33,17 +33,163 @@ int main()
 	TVoctreeVLFeat* VT = new TVoctreeVLFeat;
 	TVoctreeVLFeat* VT_low = new TVoctreeVLFeat;
 	vector<string> imgList, dscList, foldList;
-	vector<vector<string>> testSet;
-	vector<vector<float>> scorePP_set, scoreELK_set;
+	vector<vector<string>> testSet,fnSet;
+	vector<vector<float>> scorePP_set, scoreELK_set, scoreW_set;
 	long start = clock();
 	double duration;
 	unsigned int err_count = 0;
 
 	paramsConfig(myPath, myES);
 	VocTreeInit(VT, VT_low, myPath);
-	GET_FolderList(myPath.DataSet.c_str(), foldList);
 
-	/*
+	//Face Reco Import New Data
+	/* 
+	GET_FolderList(myPath.DataSet.c_str(), foldList);
+	for (unsigned int f = 0; f < foldList.size(); f++)
+	{
+		vector <string> imgList;
+		String imgFoldPath;
+		imgFoldPath = myPath.DataSet + "/" + foldList[f];
+		GET_DirectoryImages(imgFoldPath.c_str(), imgList);
+
+		omp_set_dynamic(0);     // Explicitly disable dynamic teams
+		omp_set_num_threads(8); // Use 4 threads for all consecutive parallel regions
+		#pragma omp parallel for
+		for (int i = 0; i < imgList.size(); i++)
+		{
+			string imgPath = imgFoldPath + "/" + imgList[i];
+			Image_Info myIm;
+			ImageConfig(imgList, i, imgPath.c_str(), myIm, true);
+
+			if (IS_ImageFile(imgPath.c_str()))
+			{
+				try
+				{
+					uchar_descriptors my_desc(imgPath.c_str(), "", AKAZE_FEATS);
+					my_desc.extract_AKAZE_feats();
+					printf("nok\n");
+					ImportRawImage(myPath, myES, VT, imgPath, myIm, &my_desc);
+					printf("ok\n");
+				}
+				catch (exception e)
+				{
+					printf("\nMain:::extract akaze and write:%s", e.what());
+				}
+			}
+		}
+	}//*/
+
+	//Face Reco Query
+	///*
+	GET_FolderList(myPath.DataSet.c_str(), foldList);
+	for (unsigned int f = 0; f < foldList.size(); f++)
+	{
+		vector <string> imgList;
+		String imgFoldPath;
+		imgFoldPath = myPath.DataSet + "/" + foldList[f];
+		GET_DirectoryImages(imgFoldPath.c_str(), imgList);
+
+		vector<string> testSetFold,fnFold;
+		vector<float> scoresPP__F, scoresELK__F, scoresW__F;
+		testSetFold.push_back(foldList[f] + ".jpg");
+		scoresELK__F.push_back(atof(foldList[f].c_str()));
+		scoresPP__F.push_back(atof(foldList[f].c_str()));
+		scoresW__F.push_back(atof(foldList[f].c_str()));
+		for (int i = 0; i < 10 * 25; i++)
+		{
+			testSetFold.push_back("-1");
+			scoresELK__F.push_back(-1);
+			scoresPP__F.push_back(-1);
+			scoresW__F.push_back(-1);
+		}
+		for (int i = 0; i < 25; i++)
+			fnFold.push_back("NoName");
+
+		omp_set_dynamic(0);     // Explicitly disable dynamic teams
+		omp_set_num_threads(8); // Use 4 threads for all consecutive parallel regions
+#pragma omp parallel for
+		for (int m = 0; m < imgList.size(); m++)
+		{
+			string imgPath = imgFoldPath + "/" + imgList[m];
+			Image_Info myIm;
+			ImageConfig(imgList, m, imgPath.c_str(), myIm, true);
+			fnFold[m] = imgList[m];
+
+			if (IS_ImageFile(imgPath.c_str()))
+			{
+				try
+				{
+					vector<string> testIm;
+					vector<float> scoresPP, scoresELK, scoresW;
+					uchar_descriptors my_desc(imgPath.c_str(), "", AKAZE_FEATS);
+					my_desc.extract_AKAZE_feats();
+					QueryRawImage(myPath, myES, VT, "NoDSC", myIm, &my_desc, testIm,
+						scoresPP, scoresELK);
+					//score weighting    w1*ELKscore + w2*PPscore
+					for (unsigned int l = 0; l < scoresPP.size(); l++)
+					{
+						float wScore = (0.3 * scoresELK[l]) + (0.7 * scoresPP[l]);
+						scoresW.push_back(wScore);
+					}
+
+					printf("%d\n", m);
+
+					if (testIm.size() == 10)
+					{
+						for (int i = 0; i < scoresW.size(); i++)
+						{
+							testSetFold[(m * 10) + i + 1] = testIm[i];
+							scoresELK__F[(m * 10) + i + 1] = scoresELK[i];
+							scoresPP__F[(m * 10) + i + 1] = scoresPP[i];
+							scoresW__F[(m * 10) + i + 1] = scoresW[i];
+						}
+
+						testIm.clear(); testIm.shrink_to_fit();
+						scoresPP.clear(); scoresPP.shrink_to_fit();
+						scoresELK.clear(); scoresELK.shrink_to_fit();
+						scoresW.clear(); scoresW.shrink_to_fit();
+					}
+					else
+					{
+						for (int i = 0; i < 11; i++)
+						{
+							testSetFold.push_back("-1");
+							scoresELK__F.push_back(-1);
+							scoresPP__F.push_back(-1);
+							scoresW__F.push_back(-1);
+						}
+					}
+					printf("ok\n");
+				}
+				catch (exception e)
+				{
+					printf("\nMain:::extract akaze and write:%s", e.what());
+				}
+			}
+		}
+		testSet.push_back(testSetFold);
+		testSetFold.clear(); testSetFold.shrink_to_fit();
+		fnSet.push_back(fnFold);
+		fnFold.clear(); fnFold.shrink_to_fit();
+		//Write from folder to dataset
+		scoreELK_set.push_back(scoresELK__F);
+		scorePP_set.push_back(scoresPP__F);
+		scoreW_set.push_back(scoresW__F);
+		scoresELK__F.clear(); scoresELK__F.shrink_to_fit();
+		scoresPP__F.clear(); scoresPP__F.shrink_to_fit();
+		scoresW__F.clear(); scoresW__F.shrink_to_fit();
+		printf("\rFolder No:  = %d\n", f);
+	}
+	foldList.clear();
+	foldList.shrink_to_fit();
+	WriteCSV(testSet, "FaceSub01.csv", 251);
+	WriteCSV(scoreELK_set, "FaceSub01_scoreELK.csv", 251);
+	WriteCSV(scorePP_set, "FaceSub01_scorePP.csv", 251);
+	WriteCSV(scoreW_set, "FaceSub01_scoreW.csv", 251);
+	WriteCSV(fnSet, "FaceSub01_fn.csv", 25);
+	//*/
+	//Image Search import new data
+	/* 
 	for (unsigned int f = 0; f < foldList.size(); f++)
 	{
 		vector <string> subfoldList;
@@ -109,27 +255,31 @@ int main()
 	foldList.clear();
 	foldList.shrink_to_fit();
 	//*/
-	
-	///*
+	//Image search query
+	/*  
 	//for (unsigned int f = 0; f < foldList.size(); f++)
-	for (unsigned int f = 1; f < 2; f++)
+	for (unsigned int f = 0; f < 50; f++)
 	{
 		String imgFoldPath;
 		imgFoldPath = myPath.DataSet + "/" + foldList[f]  ;
 		GET_DirectoryImages(imgFoldPath.c_str(), imgList);
 		vector<string> testSetFold;
-		vector<float> scoresPP__F, scoresELK__F;
+		vector<float> scoresPP__F, scoresELK__F, scoresW__F;
 		testSetFold.push_back(foldList[f] + ".jpg");
-		for (int i = 0; i < 11 * 25; i++)
+		scoresELK__F.push_back(atof(foldList[f].c_str()));
+		scoresPP__F.push_back(atof(foldList[f].c_str()));
+		scoresW__F.push_back(atof(foldList[f].c_str()));
+		for (int i = 0; i < 10 * 25; i++)
 		{
 			testSetFold.push_back("-1");
 			scoresELK__F.push_back(-1);
 			scoresPP__F.push_back(-1);
+			scoresW__F.push_back(-1);
 		}
 
 			omp_set_dynamic(0);     // Explicitly disable dynamic teams
 			omp_set_num_threads(8); // Use 4 threads for all consecutive parallel regions
-			//#pragma omp parallel for
+			#pragma omp parallel for
 			for (int m = 0; m < imgList.size(); m++)
 			{
 				string imgPath = imgFoldPath + "/" + imgList[m];
@@ -142,28 +292,36 @@ int main()
 					try
 					{
 						vector<string> testIm;
-						vector<float> scoresPP, scoresELK;
+						vector<float> scoresPP, scoresELK, scoresW;
+
 						uchar_descriptors my_desc(imgPath.c_str(), "NoDSC", AKAZE_FEATS);
 						my_desc.extract_AKAZE_feats();
-						//uchar_descriptors my_desc2(imgPath.c_str(), "NoDSC", AKAZE_FEATS);
-						//my_desc2.extract_AKAZE_low_feats();
-						scoresELK.push_back(atof(myIm.fileName.c_str()));
-						scoresPP.push_back(atof(myIm.fileName.c_str()));
+
 						QueryRawImage(myPath, myES, VT, "NoDSC", myIm, &my_desc, testIm, 
-							scoresPP, scoresELK, returnImage);
-						printf("%d\n", m);
-						if (testIm.size() == 11)
+							scoresPP, scoresELK);
+						//score weighting    w1*ELKscore + w2*PPscore
+						for (unsigned int l = 0; l < scoresPP.size(); l++)
 						{
-							for (int i = 0; i < 11; i++)
+							float wScore = (0.3 * scoresELK[l]) + (0.7 * scoresPP[l]);
+							scoresW.push_back(wScore);
+						}
+						
+						printf("%d\n", m);
+
+						if (testIm.size() == 10)
+						{
+							for (int i = 0; i < scoresW.size(); i++)
 							{
-								testSetFold[(m * 11) + i + 1]	=	testIm[i];
-								scoresELK__F[(m * 11) + i + 1]	=	scoresELK[i];
-								scoresPP__F[(m * 11) + i + 1]	=	scoresPP[i];
+								testSetFold[(m * 10) + i + 1]	=	testIm[i];
+								scoresELK__F[(m * 10) + i + 1]	=	scoresELK[i];
+								scoresPP__F[(m * 10) + i + 1] = scoresPP[i];
+								scoresW__F[(m * 10) + i + 1] = scoresW[i];
 							}
 							
 							testIm.clear();testIm.shrink_to_fit();
 							scoresPP.clear();scoresPP.shrink_to_fit();
-							scoresELK.clear();scoresELK.shrink_to_fit();
+							scoresELK.clear(); scoresELK.shrink_to_fit();
+							scoresW.clear(); scoresW.shrink_to_fit();
 						}
 						else
 						{
@@ -172,6 +330,7 @@ int main()
 								testSetFold.push_back("-1");
 								scoresELK__F.push_back(-1);
 								scoresPP__F.push_back(-1);
+								scoresW__F.push_back(-1);
 							}
 						}
 					}
@@ -181,13 +340,17 @@ int main()
 					}
 				}
 			}
+
 			testSet.push_back(testSetFold);
 			testSetFold.clear();testSetFold.shrink_to_fit();
-
+			//Write from folder to dataset
 			scoreELK_set.push_back(scoresELK__F);
 			scorePP_set.push_back(scoresPP__F);
+			scoreW_set.push_back(scoresW__F);
 			scoresELK__F.clear(); scoresELK__F.shrink_to_fit();
 			scoresPP__F.clear(); scoresPP__F.shrink_to_fit();
+			scoresW__F.clear(); scoresW__F.shrink_to_fit();
+			printf("\rFolder No:  = %d\n", f);
 
 			imgList.clear();imgList.shrink_to_fit();
 			if (f % 5 == 0)
@@ -198,10 +361,12 @@ int main()
 	}
 	foldList.clear();
 	foldList.shrink_to_fit();
-	WriteCSV(testSet, "TESTIM33.csv", 276);
-	WriteCSV(scoreELK_set, "TESTIM33_scoreELK.csv", 276);
-	WriteCSV(scorePP_set, "TESTIM33_scorePP.csv", 276);
+	WriteCSV(testSet, "TESTIM33.csv", 251);
+	WriteCSV(scoreELK_set, "TESTIM33_scoreELK.csv", 251);
+	WriteCSV(scorePP_set, "TESTIM33_scorePP.csv", 251);
+	WriteCSV(scoreW_set, "TESTIM33_scoreW.csv", 251);
 	//*/
+
 	duration = clock() - start;
 	delete VT;
 	delete VT_low;
