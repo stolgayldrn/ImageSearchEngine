@@ -1,7 +1,7 @@
 #include "ISE_Helpers.h"
 
 
-void ReleaseAll__ImRawIm(unsigned* vwI, json_t* myJSON, string& vwS, const char* ES_id)
+void ReleaseAll__ImRawIm(unsigned* vwI, json_t* myJSON, std::string& vwS, const char* ES_id)
 {
 	delete[] vwI;
 	json_decref(myJSON);
@@ -9,7 +9,7 @@ void ReleaseAll__ImRawIm(unsigned* vwI, json_t* myJSON, string& vwS, const char*
 	delete ES_id;
 }
 
-void ReleaseAll__ImRawIm(unsigned* vwI, unsigned* vwI_low, json_t* myJSON, string& vwS, string& vwS_low, const char* ES_id)
+void ReleaseAll__ImRawIm(unsigned* vwI, unsigned* vwI_low, json_t* myJSON, std::string& vwS, std::string& vwS_low, const char* ES_id)
 {
 	delete[] vwI;
 	delete[] vwI_low;
@@ -19,13 +19,13 @@ void ReleaseAll__ImRawIm(unsigned* vwI, unsigned* vwI_low, json_t* myJSON, strin
 	delete ES_id;
 }
 
-void WriteCSV(vector<vector<string>> dataVV, char* fileName, int fileNum)
+void WriteCSV(std::vector<std::vector<std::string>> dataVV, char* fileName, int fileNum)
 {
-	ofstream myfile;
-	string CSV_Path = fileName;
+	std::ofstream myfile;
+	std::string CSV_Path = fileName;
 	myfile.open(CSV_Path.c_str());
 	for (int i = 0; i < dataVV.size(); i++){
-		string lineStr = "";
+		std::string lineStr = "";
 		for (int ii = 0; ii < fileNum; ii++){
 			lineStr += dataVV[i][ii] + ";";
 		}
@@ -34,42 +34,44 @@ void WriteCSV(vector<vector<string>> dataVV, char* fileName, int fileNum)
 	}
 }
 
-void WriteCSV(vector<vector<float>> dataVV, char* fileName, int fileNum)
+void WriteCSV(std::vector<std::vector<float>> dataVV, char* fileName, int fileNum)
 {
-	ofstream myfile;
-	string CSV_Path = fileName;
+	std::ofstream myfile;
+	std::string CSV_Path = fileName;
 	myfile.open(CSV_Path.c_str());
 	for (int i = 0; i < dataVV.size(); i++){
-		string lineStr = "";
+		std::string lineStr = "";
 		for (int ii = 0; ii < fileNum; ii++){
-			lineStr += to_string(dataVV[i][ii]) + ";";
+			lineStr += std::to_string(dataVV[i][ii]) + ";";
 		}
 		lineStr += "\n";
 		myfile << lineStr;
 	}
 }
 
-void paramsConfig(Path &myPath, ES_params &myES)
+void paramsConfig(Path &myPath, ELK_params &myES)
 {
 	myPath.dscFoldName = "dsc_akaze2";
 	myPath.dscFoldName2 = "dsc_akaze_low";
-	myPath.DataSet = "C:/ImageSearch/Face Reco Dataset/TestFR01";
+	myPath.DataSet = "Z:/2016";
 	myPath.imgFoldName = "images";
 	myPath.subFolderingLevel = 2;
-	myPath.VocTree = "C:/ImageSearch/VT_Trees/VT_flicker500K_AKAZE_middle_tree_S2_P";
-	myPath.VocTreeLow = "C:/ImageSearch/VT_Trees/VT_flicker500K_AKAZE_small_tree_S2_P";
+	myPath.VocTree = "D:/v2/voctree";
+	//myPath.VocTreeLow = "D:\v2\voctree";
 
-	myES.index = "flicker1m_test2";
-	myES.type = "faces4";
-	myES.url = "http://172.16.10.202:9200";
+	myES.index = "akaze_test";
+	myES.type = "2016";
+	//myES.url = "http://172.16.10.202:9200"; //ImageServer2 from local network
+	//myES.url = "http://85.105.103.135:9202"; //ImageServer2 from different network
+	myES.url = "http://10.254.101.171:3000"; //AA 
 	myES.userPWD = "";
 }
 
-void ImageConfig(vector<string> vList, int m, string imagePath, Image_Info& myIm, bool imgPath)
+void ImageConfig(std::vector<std::string> vList, int m, std::string imagePath, Image_Info& myIm, bool imgPath)
 {
-	myIm.dataSet = "faceReco";
+	myIm.dataSet = "2016";
 	myIm.dataSubSet = "";
-	myIm.descriptorType = "faces";
+	myIm.descriptorType = "aa test";
 	myIm.encoding = "jpg";
 	myIm.fileName = (imgPath) ? vList[m] : vList[m].substr(0, vList[m].length() - 4);
 	//myIm.fileName = vList[m];
@@ -79,32 +81,32 @@ void ImageConfig(vector<string> vList, int m, string imagePath, Image_Info& myIm
 	myIm.Import = "true";
 	myIm.Query = "false";
 	myIm.path = imagePath;
-	myIm.source_type = "http://robotics.csie.ncku.edu.tw/Databases/FaceDetect_PoseEstimate.htm";
+	myIm.source_type = "AA test";
 }
 
-void ImportRawImage(Path myPath, ES_params myES, TVoctreeVLFeat* VT, string dscPath,
+void ImportRawImage(Path myPath, ELK_params myES, TVoctreeVLFeat* VT, std::string dscPath,
 	Image_Info myIm, uchar_descriptors * my_desc)
 {
-	unsigned int * vwI = new unsigned int[my_desc->get_num_descriptors()];
+	unsigned int * vwI = new unsigned int[my_desc->GetNumOfDescriptors()];
 	json_t* myJSON = json_object();
-	string vwS = "";
+	std::string vwS = "";
 	const char * ES_id = new    char;
 
-	if (my_desc->get_num_descriptors() > 0)
+	if (my_desc->GetNumOfDescriptors() > 0)
 	{
 		try
 		{
-			VT->quantize_multi(vwI, my_desc->get_data(), my_desc->get_num_descriptors(), 61);
-			for (unsigned int s = 0; s < my_desc->get_num_descriptors(); s++)
+			VT->quantize_multi(vwI, my_desc->GetUCHAR_descriptors(), my_desc->GetNumOfDescriptors(), 61);
+			for (unsigned int s = 0; s < my_desc->GetNumOfDescriptors(); s++)
 				vwS += " " + int2string(int(vwI[s]));
 
 			if (vwS != "")
 			{
-				getJSON_new_image(myIm, myPath, myJSON, vwS);
-				ES_commit(myES, myJSON, ES_id, myIm.fileName.c_str());
+				GetJSON__NewImage(myIm, myPath, myJSON, vwS);
+				ELK__Commit(myES, myJSON, ES_id, myIm.fileName.c_str());
 			}
 		}
-		catch (exception e)
+		catch (std::exception e)
 		{
 			printf("\nElasticSearch:::commit error:%s", e.what());
 		}
@@ -113,41 +115,41 @@ void ImportRawImage(Path myPath, ES_params myES, TVoctreeVLFeat* VT, string dscP
 	{
 		ReleaseAll__ImRawIm(vwI, myJSON, vwS, ES_id);
 	}
-	catch (exception e)
+	catch (std::exception e)
 	{
 		printf("\nElasticSearch:::release error:%s", e.what());
 	}
 }
 
-void ImportRawImage(Path myPath, ES_params myES, TVoctreeVLFeat* VT, string dscPath, Image_Info myIm,
-	uchar_descriptors * my_desc, TVoctreeVLFeat* VT_low, string dsc2Path, uchar_descriptors * my_desc2)
+void ImportRawImage(Path myPath, ELK_params myES, TVoctreeVLFeat* VT, std::string dscPath, Image_Info myIm,
+	uchar_descriptors * my_desc, TVoctreeVLFeat* VT_low, std::string dsc2Path, uchar_descriptors * my_desc2)
 {
-	unsigned int * vwI = new unsigned int[my_desc->get_num_descriptors()];
-	unsigned int * vwI_low = new unsigned int[my_desc2->get_num_descriptors()];
+	unsigned int * vwI = new unsigned int[my_desc->GetNumOfDescriptors()];
+	unsigned int * vwI_low = new unsigned int[my_desc2->GetNumOfDescriptors()];
 	json_t* myJSON = json_object();
-	string vwS = "";
-	string vwS_low = "";
+	std::string vwS = "";
+	std::string vwS_low = "";
 	const char * ES_id = new char;
 
-	if (my_desc->get_num_descriptors() > 0 && my_desc2->get_num_descriptors() > 0)
+	if (my_desc->GetNumOfDescriptors() > 0 && my_desc2->GetNumOfDescriptors() > 0)
 	{
 		try
 		{
-			VT->quantize_multi(vwI, my_desc->get_data(), my_desc->get_num_descriptors(), 61);
-			VT_low->quantize_multi(vwI_low, my_desc2->get_data(), my_desc2->get_num_descriptors(), 61);
-			for (unsigned int s = 0; s < my_desc->get_num_descriptors(); s++)
+			VT->quantize_multi(vwI, my_desc->GetUCHAR_descriptors(), my_desc->GetNumOfDescriptors(), 61);
+			VT_low->quantize_multi(vwI_low, my_desc2->GetUCHAR_descriptors(), my_desc2->GetNumOfDescriptors(), 61);
+			for (unsigned int s = 0; s < my_desc->GetNumOfDescriptors(); s++)
 				vwS += " " + int2string(int(vwI[s]));
 
-			for (unsigned int s = 0; s < my_desc2->get_num_descriptors(); s++)
+			for (unsigned int s = 0; s < my_desc2->GetNumOfDescriptors(); s++)
 				vwS_low += " " + int2string(int(vwI_low[s]));
 
 			if (vwS != "")
 			{
-				getJSON_new_image(myIm, myPath, myJSON, vwS, vwS_low);
-				ES_commit(myES, myJSON, ES_id, myIm.fileName.c_str());
+				GetJSON__NewImage(myIm, myPath, myJSON, vwS, vwS_low);
+				ELK__Commit(myES, myJSON, ES_id, myIm.fileName.c_str());
 			}
 		}
-		catch (exception e)
+		catch (std::exception e)
 		{
 			printf("\nElasticSearch:::commit error:%s", e.what());
 		}
@@ -156,41 +158,41 @@ void ImportRawImage(Path myPath, ES_params myES, TVoctreeVLFeat* VT, string dscP
 	{
 		ReleaseAll__ImRawIm(vwI, vwI_low, myJSON, vwS, vwS_low, ES_id);
 	}
-	catch (exception e)
+	catch (std::exception e)
 	{
 		printf("\nElasticSearch:::release error:%s", e.what());
 	}
 }
 
-void QueryRawImage(Path myPath, ES_params myES, TVoctreeVLFeat* VT, string dscPath, Image_Info myIm,
-	uchar_descriptors *my_desc, vector<string> &testSet, vector<float> &scoresPP, vector<float> &scoresELK)
+void QueryRawImage(Path myPath, ELK_params myES, TVoctreeVLFeat* VT, std::string dscPath, Image_Info myIm,
+	uchar_descriptors *my_desc, std::vector<std::string> &testSet, std::vector<float> &scoresPP, std::vector<float> &scoresELK)
 {
-	unsigned int * vwI = new unsigned int[my_desc->get_num_descriptors()];
+	unsigned int * vwI = new unsigned int[my_desc->GetNumOfDescriptors()];
 	json_t* myJSON = json_object();
-	string vwS = "";
+	std::string vwS = "";
 	const char * ES_id = new char;
-	vector<string> dscPathsV;
+	std::vector<std::string> dscPathsV;
 	int totalNumELK;
 
-	if (my_desc->get_num_descriptors() > 0)
+	if (my_desc->GetNumOfDescriptors() > 0)
 	{
 		try
 		{
-			VT->quantize_multi(vwI, my_desc->get_data(), my_desc->get_num_descriptors(), 61);
-			for (unsigned int s = 0; s < my_desc->get_num_descriptors(); s++)
+			VT->quantize_multi(vwI, my_desc->GetUCHAR_descriptors(), my_desc->GetNumOfDescriptors(), 61);
+			for (unsigned int s = 0; s < my_desc->GetNumOfDescriptors(); s++)
 				vwS += " " + int2string(int(vwI[s]));
 
 			if (vwS != "")
 			{
 				printf("nok \n");
-				getJSON_query_image(myJSON, vwS, "words_string");
-				//TODO: add scores at ES_post_query
-				ES_post_query(myES, myJSON, myIm, testSet, dscPathsV, scoresELK, totalNumELK);
+				GetJSON__QueryImage(myJSON, vwS, "words_string");
+				//TODO: add scores at ELK_PostQuery
+				ELK_PostQuery(myES, myJSON, myIm, testSet, dscPathsV, scoresELK, totalNumELK);
 				
 				//ELK score filtering//////////////////////////
 				double sum = 0;
 				int forLimit = 0;
-				vector<float> normELKScore;
+				std::vector<float> normELKScore;
 				forLimit = totalNumELK < 10 ? totalNumELK : 10;
 				for (int i = 0; i < forLimit; i++)
 					sum += scoresELK[i];
@@ -206,7 +208,7 @@ void QueryRawImage(Path myPath, ES_params myES, TVoctreeVLFeat* VT, string dscPa
 				printf("ok \n");
 			}
 		}
-		catch (exception e)
+		catch (std::exception e)
 		{
 			printf("\nElasticSearch:::commit error:%s", e.what());
 		}
@@ -217,20 +219,20 @@ void QueryRawImage(Path myPath, ES_params myES, TVoctreeVLFeat* VT, string dscPa
 		dscPathsV.shrink_to_fit();
 		ReleaseAll__ImRawIm(vwI, myJSON, vwS, ES_id);
 	}
-	catch (exception e)
+	catch (std::exception e)
 	{
 		printf("\nElasticSearch:::release error:%s", e.what());
 	}
 }
 
-int postProcess(uchar_descriptors *query, vector<string> dscV, vector<string> fnV, 
-	vector<float> &scores, int numELK)
+int postProcess(uchar_descriptors *query, std::vector<std::string> dscV, std::vector<std::string> fnV,
+                std::vector<float> &scores, int numELK)
 {
 	std::vector<float> scoresSorted;
 	std::vector<int> scoreRank;
 	Mat descriptorQuery;
-	query->get_descriptors(descriptorQuery);
-	std::vector<Point2f> coordsQuery = query->getCoords();
+	query->Get_CVDescriptors(descriptorQuery);
+	std::vector<Point2f> coordsQuery = query->GetCoords();
 	//std::vector<float> oriQuery, scaleQuery;
 	//TODO: runOptions Create
 	//TODO: runOptions Create
@@ -251,17 +253,17 @@ int postProcess(uchar_descriptors *query, vector<string> dscV, vector<string> fn
 			Mat descriptorMatch;
 			if (IS_DscFile(dscV[i].c_str()))
 			{
-				matchDsc.read_dsc();
-				descriptorMatch = Mat(matchDsc.get_num_descriptors(), matchDsc.getFeatureSize(), CV_8UC1);;
-				matchDsc.getDataAsMat__ReadMode(descriptorMatch);
+				matchDsc.ReadDSC();
+				descriptorMatch = Mat(matchDsc.GetNumOfDescriptors(), matchDsc.GetFeatureSize(), CV_8UC1);;
+				matchDsc.GetReadModeDescriptors(descriptorMatch);
 			}
 			else if (IS_ImageFile(dscV[i].c_str()))
 			{
-				matchDsc.extract_AKAZE_feats();
-				matchDsc.get_descriptors(descriptorMatch);
+				matchDsc.ExtractAKAZE();
+				matchDsc.Get_CVDescriptors(descriptorMatch);
 			}
-			
-			vector<Point2f> coordsMatch = matchDsc.getCoords();
+
+			std::vector<Point2f> coordsMatch = matchDsc.GetCoords();
 
 			// Match with FLANN
 			std::vector<DMatch > matches, good_matches;
@@ -315,3 +317,43 @@ int postProcess(uchar_descriptors *query, vector<string> dscV, vector<string> fn
 
 	return 0;
 }
+
+void ImageSpliter(const cv::Mat Input, std::vector<cv::Mat>& OutputVector, std::vector<std::string>& OutputNames, int maxSize)
+{
+	int height = Input.rows;
+	int widht = Input.cols;
+
+	int hNum = (height / (maxSize*0.7)) + 1;
+	int wNum = (widht / (maxSize*0.7)) + 1;
+
+	int hStart = 0;
+	int hStep = maxSize;
+
+	for (int h_i = 0; h_i < hNum ; h_i++)
+	{
+		if ((hStart + hStep) > height)
+			break;
+		int wStart = 0;
+		int wStep = maxSize;
+		for (int w_i = 0; w_i < wNum ; w_i++)
+		{
+			if ((wStart + wStep) > widht)
+				break;
+			cv::Rect myROI(wStart, hStart, wStep, hStep);
+			cv::Mat croppedImage = Input(myROI);
+
+			OutputVector.push_back(croppedImage);
+			OutputNames.push_back(int2string(h_i) +"_"+int2string(w_i));
+
+			wStart += (maxSize*0.7);
+			if (w_i == wNum - 2)
+				wStep = widht - wStart;
+		}
+		hStart += (maxSize*0.7);
+		if (h_i == hNum - 2)
+			hStep = height - hStart;
+	}
+
+
+}
+
