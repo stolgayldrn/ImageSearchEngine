@@ -19,10 +19,10 @@ void ReleaseAll__ImRawIm(unsigned* vwI, unsigned* vwI_low, json_t* myJSON, std::
 	delete ES_id;
 }
 
-void WriteCSV(std::vector<std::vector<std::string>> dataVV, char* fileName, int fileNum)
+void WriteCSV(std::vector<std::vector<std::string>> dataVV, std::string CSV_Path, int fileNum)
 {
 	std::ofstream myfile;
-	std::string CSV_Path = fileName;
+	//std::string CSV_Path = fileName;
 	myfile.open(CSV_Path.c_str());
 	for (int i = 0; i < dataVV.size(); i++){
 		std::string lineStr = "";
@@ -49,27 +49,47 @@ void WriteCSV(std::vector<std::vector<float>> dataVV, char* fileName, int fileNu
 	}
 }
 
+void WriteCSV(std::vector<std::vector<int>> dataVV, char* fileName, int fileNum)
+{
+	std::ofstream myfile;
+	std::string CSV_Path = fileName;
+	myfile.open(CSV_Path.c_str());
+	for (int i = 0; i < dataVV.size(); i++){
+		std::string lineStr = "";
+		for (int ii = 0; ii < fileNum; ii++){
+			lineStr += std::to_string(dataVV[i][ii]) + ";";
+		}
+		lineStr += "\n";
+		myfile << lineStr;
+	}
+}
+
 void paramsConfig(Path &myPath, ELK_params &myES)
 {
 	myPath.dscFoldName = "dsc_akaze2";
 	myPath.dscFoldName2 = "dsc_akaze_low";
-	myPath.DataSet = "Z:/2016";
+	myPath.DataSet = "C:/ImageSearch/ImageDataSet/temp";
 	myPath.imgFoldName = "images";
 	myPath.subFolderingLevel = 2;
-	myPath.VocTree = "D:/v2/voctree";
+	myPath.VocTree = "D:/v2/voctree/VT_flicker500K_AKAZE_middle_tree_S2_P"; // for AA server
+	//myPath.VocTree = "C:/ImageSearch/VT_Trees/VT_flicker500K_AKAZE_middle_tree_S2_P";
 	//myPath.VocTreeLow = "D:\v2\voctree";
 
-	myES.index = "akaze_test";
-	myES.type = "2016";
+	//myES.index = "flicker1m_test2";
+	//myES.type = "istanbul2";
 	//myES.url = "http://172.16.10.202:9200"; //ImageServer2 from local network
 	//myES.url = "http://85.105.103.135:9202"; //ImageServer2 from different network
-	myES.url = "http://10.254.101.171:3000"; //AA 
+
+	myES.index = "akaze_test"; // AA
+	myES.type = "2016"; // AA
+	myES.url = "http://10.254.101.171:3000"; // AA 
+
 	myES.userPWD = "";
 }
 
 void ImageConfig(std::vector<std::string> vList, int m, std::string imagePath, Image_Info& myIm, bool imgPath)
 {
-	myIm.dataSet = "2016";
+	myIm.dataSet = "2014";
 	myIm.dataSubSet = "";
 	myIm.descriptorType = "aa test";
 	myIm.encoding = "jpg";
@@ -164,6 +184,23 @@ void ImportRawImage(Path myPath, ELK_params myES, TVoctreeVLFeat* VT, std::strin
 	}
 }
 
+void scoreNormELK(std::vector<float>& scoresELK, int totalNumELK, std::vector<float>& normELKScore)
+{
+	double sum = 0;
+	int forLimit = 0;
+	forLimit = totalNumELK < QUERY_RETURN_SIZE ? totalNumELK : QUERY_RETURN_SIZE;
+	for (int i = 0; i < forLimit; i++)
+		sum += scoresELK[i];
+	for (int i = 0; i < forLimit; i++)
+	{
+		float scoreNorm = scoresELK[i] / sum;
+		if (scoreNorm > 0.02 && scoresELK[i] > 0.1)
+			normELKScore.push_back(scoreNorm);
+		else
+			break;
+	}
+}
+
 void QueryRawImage(Path myPath, ELK_params myES, TVoctreeVLFeat* VT, std::string dscPath, Image_Info myIm,
 	uchar_descriptors *my_desc, std::vector<std::string> &testSet, std::vector<float> &scoresPP, std::vector<float> &scoresELK)
 {
@@ -181,31 +218,30 @@ void QueryRawImage(Path myPath, ELK_params myES, TVoctreeVLFeat* VT, std::string
 			VT->quantize_multi(vwI, my_desc->GetUCHAR_descriptors(), my_desc->GetNumOfDescriptors(), 61);
 			for (unsigned int s = 0; s < my_desc->GetNumOfDescriptors(); s++)
 				vwS += " " + int2string(int(vwI[s]));
-
+			/*Temporary words writing*/
+			/*std::vector<std::vector<int>> tempWords;
+			for (int v = 0; v < my_desc->GetNumOfDescriptors(); v++)
+			{
+				std::vector<int>tempW;
+				tempW.push_back(vwI[v]);
+				tempWords.push_back(tempW);
+			}
+			std::string tempPath = myIm.path + ".csv";
+			WriteCSV(tempWords,"a.csv", 1);*/
+			/*************************/
 			if (vwS != "")
 			{
-				printf("nok \n");
 				GetJSON__QueryImage(myJSON, vwS, "words_string");
 				//TODO: add scores at ELK_PostQuery
 				ELK_PostQuery(myES, myJSON, myIm, testSet, dscPathsV, scoresELK, totalNumELK);
-				
 				//ELK score filtering//////////////////////////
-				double sum = 0;
-				int forLimit = 0;
-				std::vector<float> normELKScore;
-				forLimit = totalNumELK < 10 ? totalNumELK : 10;
-				for (int i = 0; i < forLimit; i++)
-					sum += scoresELK[i];
-				for (int i = 0; i < forLimit; i++)
+				if (totalNumELK > 0)
 				{
-					float scoreNorm = scoresELK[i] / sum;
-					if (scoreNorm > 0.08)
-						normELKScore.push_back(scoreNorm);
+					std::vector<float> normELKScore;
+					scoreNormELK(scoresELK, totalNumELK, normELKScore);
+					////////////////////////////////////////////////
+					postProcess(my_desc, dscPathsV, testSet, scoresPP, normELKScore.size());
 				}
-				////////////////////////////////////////////////
-				postProcess(my_desc, dscPathsV, testSet, scoresPP, normELKScore.size());
-
-				printf("ok \n");
 			}
 		}
 		catch (std::exception e)
@@ -259,6 +295,7 @@ int postProcess(uchar_descriptors *query, std::vector<std::string> dscV, std::ve
 			}
 			else if (IS_ImageFile(dscV[i].c_str()))
 			{
+				matchDsc.setResizeImage(true);
 				matchDsc.ExtractAKAZE();
 				matchDsc.Get_CVDescriptors(descriptorMatch);
 			}
@@ -329,6 +366,22 @@ void ImageSpliter(const cv::Mat Input, std::vector<cv::Mat>& OutputVector, std::
 	int hStart = 0;
 	int hStep = maxSize;
 
+	if (Input.rows > maxSize || Input.cols > maxSize)
+	{
+		int h = Input.rows;
+		int w = Input.cols;
+		double hs = h*1.0 / maxSize;
+		double ws = w*1.0 / maxSize;
+		cv::Mat reszImg;
+		if (h>w)
+			cv::resize(Input, reszImg, cv::Size(w / hs, h / hs), 0, 0, CV_INTER_LINEAR);
+		else
+			cv::resize(Input, reszImg, cv::Size(w / ws, h / ws), 0, 0, CV_INTER_LINEAR);
+
+		OutputVector.push_back(reszImg);
+		OutputNames.push_back("resized");
+	}
+
 	for (int h_i = 0; h_i < hNum ; h_i++)
 	{
 		if ((hStart + hStep) > height)
@@ -357,3 +410,11 @@ void ImageSpliter(const cv::Mat Input, std::vector<cv::Mat>& OutputVector, std::
 
 }
 
+void scoreWeighting(std::vector<float> scoresPP, std::vector<float> scoresELK, std::vector<float> & scoresW)
+{
+	for (unsigned int l = 0; l < scoresPP.size(); l++)
+	{
+		float wScore = (0.3 * scoresELK[l]) + (0.7 * scoresPP[l]);
+		scoresW.push_back(wScore);
+	}
+}

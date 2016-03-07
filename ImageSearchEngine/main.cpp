@@ -1,15 +1,6 @@
-//#include "helpers2.h"
-//#include "postProc.h"
-//#include <vector>
-//#include "descriptors.h"
-//#include <omp.h>
-//#include "ES_image.h"
-//#include "TVoctreeVLFeat.h"
-//#include <array>
-//#include "vld.h"
 #include "ISE_Helpers.h"
 
-int main()
+int main(int argc, char *argv[])
 {
 	Path myPath;
 	ELK_params myES;
@@ -351,26 +342,27 @@ int main()
 	GET_DirectoryImages(myPath.DataSet.c_str(), imgList);
 	for (int i = 0; i < imgList.size(); i++)
 	{
-	std::string imgPath = myPath.DataSet + "/" + imgList[i];
-	Image_Info myIm;
-	ImageConfig(imgList, i, imgPath.c_str(), myIm, true);
-	if (IS_ImageFile(imgPath.c_str()))
-	{
-	try
-	{
-	uchar_descriptors my_desc(imgPath.c_str(), "", AKAZE_FEATS);
-	my_desc.ExtractAKAZE();
-	myIm.height = my_desc.GetImageHeight();
-	myIm.width = my_desc.GetImageWidth();
-	printf("nok\n");
-	ImportRawImage(myPath, myES, VT, imgPath, myIm, &my_desc);
-	printf("ok\n");
-	}
-	catch (std::exception e)
-	{
-	printf("\nMain:::extract akaze and write:%s", e.what());
-	}
-	}
+		std::string imgPath = myPath.DataSet + "/" + imgList[i];
+		Image_Info myIm;
+		ImageConfig(imgList, i, imgPath.c_str(), myIm, true);
+		if (IS_ImageFile(imgPath.c_str()))
+		{
+			try
+			{
+				uchar_descriptors my_desc(imgPath.c_str(), "", AKAZE_FEATS);
+				my_desc.setResizeImage(true);
+				my_desc.ExtractAKAZE();
+				myIm.height = my_desc.GetImageHeight();
+				myIm.width = my_desc.GetImageWidth();
+				printf("nok\n");
+				ImportRawImage(myPath, myES, VT, imgPath, myIm, &my_desc);
+				printf("ok\n");
+			}
+			catch (std::exception e)
+			{
+				printf("\nMain:::extract akaze and write:%s", e.what());
+			}
+		}
 	}
 	imgList.clear();
 	imgList.shrink_to_fit();
@@ -423,16 +415,18 @@ int main()
 	imgList.shrink_to_fit();
 	//*/
 	// AA Import Images
-	///*
-omp_set_dynamic(0);     // Explicitly disable dynamic teams
-int numThread = omp_get_max_threads();
-omp_set_num_threads(numThread); // Use 4 threads for all consecutive parallel regions
-	auto numSFold = myPath.subFolderingLevel;
+	/*
+	if (argc >= 1)
+		myPath.DataSet = argv[1];
+	omp_set_dynamic(0);     // Explicitly disable dynamic teams
+	int numThread = omp_get_max_threads();
+	omp_set_num_threads(numThread); // Use 4 threads for all consecutive parallel regions
 	std::vector<std::string> monthList;
 	GET_FolderList(myPath.DataSet.c_str(), monthList);
 	for (size_t m = 0; m < monthList.size(); m++)
 	{
-		auto mPath = myPath.DataSet + "/"+ monthList[m];
+
+		auto mPath = myPath.DataSet + "/" + monthList[m];
 		std::vector<std::string> dayList;
 		GET_FolderList(mPath.c_str(), dayList);
 		for (size_t d = 0; d < dayList.size(); d++)
@@ -440,7 +434,7 @@ omp_set_num_threads(numThread); // Use 4 threads for all consecutive parallel re
 			auto dPath = mPath + "/" + dayList[d];
 			std::vector<std::string> imgList;
 			GET_DirectoryImages(dPath.c_str(), imgList);
-			
+
 #pragma omp parallel for
 			for (int i = 0; i < imgList.size(); i++)
 			{
@@ -467,19 +461,117 @@ omp_set_num_threads(numThread); // Use 4 threads for all consecutive parallel re
 					}
 				}
 			}
-		
 		}
-
 	}
 	//*/
+	// AA Query Images
+	///*
+	if (argc >= 1 && argv[1]!= nullptr)
+		myPath.DataSet = argv[1];
+	omp_set_dynamic(0);     // Explicitly disable dynamic teams
+	int numThread = omp_get_max_threads();
+	omp_set_num_threads(numThread); // Use 4 threads for all consecutive parallel regions
+	std::vector<std::string> imgList;
+	std::vector<std::vector<std::string>> outputsV;
+	GET_DirectoryImages(myPath.DataSet.c_str(), imgList);
+
+//#pragma omp parallel for
+	for (int i = 0; i < imgList.size(); i++)
+	//for (int i = 0; i <10; i++)
+	{
+		auto imgPath = myPath.DataSet + "/" + imgList[i];
+		Image_Info myIm;
+		ImageConfig(imgList, i, imgPath.c_str(), myIm, true);
+
+		if (IS_ImageFile(imgPath.c_str()))
+		{
+			try
+			{
+				cv::Mat Image = cv::imread(imgPath, cv::IMREAD_GRAYSCALE);
+				std::vector<cv::Mat> imagesVector;
+				std::vector<std::string> imageNameList;
+				// variables for scoring
+				std::vector<std::string> testIm;
+				std::vector<float> scoresPP, scoresELK, scoresW;
+				if (Image.rows > 800 || Image.cols > 800)
+					ImageSpliter(Image, imagesVector, imageNameList, 800);
+				else
+				{
+					imagesVector.push_back(Image);
+					imageNameList.push_back("raw");
+				}
+				//#pragma omp parallel for
+				for (int f = 0; f < imagesVector.size(); f++)
+				{
+					printf("nok\n");
+					std::vector<std::string> outputLine;
+					// 1. Feature Extraction
+					uchar_descriptors my_desc_f(imageNameList[f].c_str(), imagesVector[f], "", AKAZE_FEATS);
+					my_desc_f.ExtractAKAZE();
+					myIm.height = my_desc_f.GetImageHeight();
+					myIm.width = my_desc_f.GetImageWidth();
+					// 2. ELK Query and Response
+					QueryRawImage(myPath, myES, VT, "NoDSC", myIm, &my_desc_f, testIm, scoresPP, scoresELK);
+					// 3. Score Weighting   ( w1*ELKscore + w2*PPscore )
+					if (testIm.size() > 0)
+						scoreWeighting(scoresPP, scoresELK, scoresW);
+					printf("%d::%d\n", i, f);
+					// 4. Score
+					outputLine.push_back(imgList[i].c_str());
+					outputLine.push_back(imageNameList[f].c_str());
+					outputLine.push_back(int2string(int(my_desc_f.GetNumOfDescriptors())));
+					
+					for (int p = 0; p < QUERY_RETURN_SIZE; p++)
+					{
+						if (p < scoresW.size()){
+							outputLine.push_back(float2string(scoresPP[p]));
+							outputLine.push_back(float2string(scoresELK[p]));
+							outputLine.push_back(float2string(scoresW[p]));
+							outputLine.push_back(testIm[p].c_str());
+						}
+						else{ for (int n = 0; n < 4; n++)outputLine.push_back("NoScore"); }
+					}
+					
+					outputsV.push_back(outputLine);
+					outputLine.clear(); outputLine.shrink_to_fit();
+					// 5. Releases
+					testIm.clear(); testIm.shrink_to_fit();
+					scoresPP.clear(); scoresPP.shrink_to_fit();
+					scoresELK.clear(); scoresELK.shrink_to_fit();
+					scoresW.clear(); scoresW.shrink_to_fit();
+					printf("ok\n");
+				}
+			}
+			catch (std::exception e)
+			{
+				printf("\nMain:::extract akaze and write:%s", e.what());
+			}
+		}
+		else 
+			printf("\nNot an Image File: %s", imgPath.c_str());
+	}
+	std::string wscPath = "Test2015.csv";
+	if (argc > 1) wscPath = argv[2];
+	WriteCSV(outputsV, wscPath, 3 + (4*QUERY_RETURN_SIZE));
+
+//*/
 	duration = clock() - start;
 	delete VT;
-	delete VT_low;
+	//delete VT_low;
 	printf(":::Duration: %.2f, Error count: %d", duration, err_count);
-	waitKey(0);
 	return 0;
 }
-//
+
+//ISE HELPERS
+////#include "helpers2.h"
+//#include "postProc.h"
+//#include <vector>
+//#include "descriptors.h"
+//#include <omp.h>
+//#include "ES_image.h"
+//#include "TVoctreeVLFeat.h"
+//#include <array>
+//#include "vld.h"
 //void ReleaseAll__ImRawIm(unsigned* vwI, json_t* myJSON, string& vwS, const char* ES_id)
 //{
 //	delete[] vwI;
