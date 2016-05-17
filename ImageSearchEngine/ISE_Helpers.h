@@ -33,5 +33,7 @@ void ImageSpliter(const cv::Mat Input, std::vector<cv::Mat> &OutputVector, std::
 void scoreWeighting(std::vector<float> scoresPP, std::vector<float> scoresELK, std::vector<float> & scoresW);
 std::string currentDateTime();
 void printErrorToLog(Path myPath, std::ofstream &ofs, std::vector<std::string> imgList, int i, std::basic_string<char> imgPathDUMP, uchar_descriptors myDesc, std::string errCmd);
+void findMatches(uchar_descriptors &descriptor_1, uchar_descriptors &descriptor_2, std::vector<DMatch >& good_matches);
+void findIntersectedFeatures(std::string imgPath, cv::Mat img1, uchar_descriptors& descriptor_1, std::vector<DMatch >& inMatches);
 
 #endif
