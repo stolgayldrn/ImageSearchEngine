@@ -9,79 +9,72 @@ void ReleaseAll__ImRawIm(unsigned* vwI, json_t* myJSON, std::string& vwS, const 
 	delete ES_id;
 }
 
-void ReleaseAll__ImRawIm(unsigned* vwI, unsigned* vwI_low, json_t* myJSON, std::string& vwS, std::string& vwS_low, const char* ES_id)
-{
-	delete[] vwI;
-	delete[] vwI_low;
-	json_decref(myJSON);
-	vwS = "";
-	vwS_low = "";
-	delete ES_id;
-}
-
-void WriteCSV(std::vector<std::vector<std::string>> dataVV, std::string CSV_Path, int fileNum)
-{
-	std::ofstream myfile;
-	//std::string CSV_Path = fileName;
-	myfile.open(CSV_Path.c_str());
-	for (int i = 0; i < dataVV.size(); i++){
-		std::string lineStr = "";
-		for (int ii = 0; ii < fileNum; ii++){
-			lineStr += dataVV[i][ii] + ";";
-		}
-		lineStr += "\n";
-		myfile << lineStr;
-	}
-}
-
-void WriteCSV(std::vector<std::vector<float>> dataVV, char* fileName, int fileNum)
-{
-	std::ofstream myfile;
-	std::string CSV_Path = fileName;
-	myfile.open(CSV_Path.c_str());
-	for (int i = 0; i < dataVV.size(); i++){
-		std::string lineStr = "";
-		for (int ii = 0; ii < fileNum; ii++){
-			lineStr += std::to_string(dataVV[i][ii]) + ";";
-		}
-		lineStr += "\n";
-		myfile << lineStr;
-	}
-}
-
-void WriteCSV(std::vector<std::vector<int>> dataVV, char* fileName, int fileNum)
-{
-	std::ofstream myfile;
-	std::string CSV_Path = fileName;
-	myfile.open(CSV_Path.c_str());
-	for (int i = 0; i < dataVV.size(); i++){
-		std::string lineStr = "";
-		for (int ii = 0; ii < fileNum; ii++){
-			lineStr += std::to_string(dataVV[i][ii]) + ";";
-		}
-		lineStr += "\n";
-		myfile << lineStr;
-	}
-}
+//void WriteCSV(std::vector<std::vector<std::string>> dataVV, std::string CSV_Path, int fileNum)
+//{
+//	std::ofstream myfile;
+//	//std::string CSV_Path = fileName;
+//	myfile.open(CSV_Path.c_str());
+//	for (int i = 0; i < dataVV.size(); i++){
+//		std::string lineStr = "";
+//		for (int ii = 0; ii < fileNum; ii++){
+//			lineStr += dataVV[i][ii] + ";";
+//		}
+//		lineStr += "\n";
+//		myfile << lineStr;
+//	}
+//}
+//
+//void WriteCSV(std::vector<std::vector<float>> dataVV, char* fileName, int fileNum)
+//{
+//	std::ofstream myfile;
+//	std::string CSV_Path = fileName;
+//	myfile.open(CSV_Path.c_str());
+//	for (int i = 0; i < dataVV.size(); i++){
+//		std::string lineStr = "";
+//		for (int ii = 0; ii < fileNum; ii++){
+//			lineStr += std::to_string(dataVV[i][ii]) + ";";
+//		}
+//		lineStr += "\n";
+//		myfile << lineStr;
+//	}
+//}
+//
+//void WriteCSV(std::vector<std::vector<int>> dataVV, char* fileName, int fileNum)
+//{
+//	std::ofstream myfile;
+//	std::string CSV_Path = fileName;
+//	myfile.open(CSV_Path.c_str());
+//	for (int i = 0; i < dataVV.size(); i++){
+//		std::string lineStr = "";
+//		for (int ii = 0; ii < fileNum; ii++){
+//			lineStr += std::to_string(dataVV[i][ii]) + ";";
+//		}
+//		lineStr += "\n";
+//		myfile << lineStr;
+//	}
+//}
 
 void paramsConfig(Path &myPath, ELK_params &myES)
 {
 	myPath.dscFoldName = "dsc_akaze2";
-	myPath.dscFoldName2 = "dsc_akaze_low";
-	myPath.DataSet = "C:/ImageSearch/ImageDataSet/temp";
+	myPath.DataSet = "C:/ImageSearch/ImageDataSet/03CustomText";
 	myPath.imgFoldName = "images";
 	myPath.subFolderingLevel = 2;
-	myPath.VocTree = "D:/v2/voctree/VT_flicker500K_AKAZE_middle_tree_S2_P"; // for AA server
-	//myPath.VocTree = "C:/ImageSearch/VT_Trees/VT_flicker500K_AKAZE_middle_tree_S2_P";
-	//myPath.VocTreeLow = "D:\v2\voctree";
+	myPath.corruptedFilesFolder = "D:/v2/SharedV2/corruptedFiles";// for AA server
+	//myPath.corruptedFilesFolder = ""; //for local PC
+	myPath.logPath = "D:/v2/SharedV2";
+	
+	//myPath.VocTree = "D:/v2/voctree/VT_flicker500K_AKAZE_middle_tree_S2_P"; // for AA server
+	myPath.VocTree = "C:/ImageSearch/VT_Trees/VT_flicker500K_AKAZE_middle_tree_S2_P"; // PC 1
+	//myPath.VocTree = "C:/ImageSearch/VT_Trees/AA_VT_Middle.dat"; // PC 2
 
 	//myES.index = "flicker1m_test2";
 	//myES.type = "istanbul2";
 	//myES.url = "http://172.16.10.202:9200"; //ImageServer2 from local network
 	//myES.url = "http://85.105.103.135:9202"; //ImageServer2 from different network
 
-	myES.index = "akaze_test"; // AA
-	myES.type = "2016"; // AA
+	myES.index = "akaze"; // AA
+	myES.type = "v1"; // AA
 	myES.url = "http://10.254.101.171:3000"; // AA 
 
 	myES.userPWD = "";
@@ -89,7 +82,7 @@ void paramsConfig(Path &myPath, ELK_params &myES)
 
 void ImageConfig(std::vector<std::string> vList, int m, std::string imagePath, Image_Info& myIm, bool imgPath)
 {
-	myIm.dataSet = "2014";
+	myIm.dataSet = "2015";
 	myIm.dataSubSet = "";
 	myIm.descriptorType = "aa test";
 	myIm.encoding = "jpg";
@@ -100,6 +93,24 @@ void ImageConfig(std::vector<std::string> vList, int m, std::string imagePath, I
 	myIm.width = 0.0;
 	myIm.Import = "true";
 	myIm.Query = "false";
+	myIm.numDescs = 0;
+	myIm.path = imagePath;
+	myIm.source_type = "AA test";
+}
+
+void ImageConfig(std::string imagePath, std::string imageFileName, Image_Info& myIm, bool imgPath)
+{
+	myIm.dataSet = "2015";
+	myIm.dataSubSet = "";
+	myIm.descriptorType = "aa test";
+	myIm.encoding = "jpg";
+	myIm.fileName = imageFileName;
+	
+	myIm.height = 0.0;
+	myIm.width = 0.0;
+	myIm.Import = "true";
+	myIm.Query = "false";
+	myIm.numDescs = 0;
 	myIm.path = imagePath;
 	myIm.source_type = "AA test";
 }
@@ -116,7 +127,7 @@ void ImportRawImage(Path myPath, ELK_params myES, TVoctreeVLFeat* VT, std::strin
 	{
 		try
 		{
-			VT->quantize_multi(vwI, my_desc->GetUCHAR_descriptors(), my_desc->GetNumOfDescriptors(), 61);
+			VT->quantize_multi(vwI, my_desc->GetUCHAR_descriptors(), my_desc->GetNumOfDescriptors(), my_desc->GetFeatureSize());
 			for (unsigned int s = 0; s < my_desc->GetNumOfDescriptors(); s++)
 				vwS += " " + int2string(int(vwI[s]));
 
@@ -141,53 +152,10 @@ void ImportRawImage(Path myPath, ELK_params myES, TVoctreeVLFeat* VT, std::strin
 	}
 }
 
-void ImportRawImage(Path myPath, ELK_params myES, TVoctreeVLFeat* VT, std::string dscPath, Image_Info myIm,
-	uchar_descriptors * my_desc, TVoctreeVLFeat* VT_low, std::string dsc2Path, uchar_descriptors * my_desc2)
-{
-	unsigned int * vwI = new unsigned int[my_desc->GetNumOfDescriptors()];
-	unsigned int * vwI_low = new unsigned int[my_desc2->GetNumOfDescriptors()];
-	json_t* myJSON = json_object();
-	std::string vwS = "";
-	std::string vwS_low = "";
-	const char * ES_id = new char;
-
-	if (my_desc->GetNumOfDescriptors() > 0 && my_desc2->GetNumOfDescriptors() > 0)
-	{
-		try
-		{
-			VT->quantize_multi(vwI, my_desc->GetUCHAR_descriptors(), my_desc->GetNumOfDescriptors(), 61);
-			VT_low->quantize_multi(vwI_low, my_desc2->GetUCHAR_descriptors(), my_desc2->GetNumOfDescriptors(), 61);
-			for (unsigned int s = 0; s < my_desc->GetNumOfDescriptors(); s++)
-				vwS += " " + int2string(int(vwI[s]));
-
-			for (unsigned int s = 0; s < my_desc2->GetNumOfDescriptors(); s++)
-				vwS_low += " " + int2string(int(vwI_low[s]));
-
-			if (vwS != "")
-			{
-				GetJSON__NewImage(myIm, myPath, myJSON, vwS, vwS_low);
-				ELK__Commit(myES, myJSON, ES_id, myIm.fileName.c_str());
-			}
-		}
-		catch (std::exception e)
-		{
-			printf("\nElasticSearch:::commit error:%s", e.what());
-		}
-	}
-	try
-	{
-		ReleaseAll__ImRawIm(vwI, vwI_low, myJSON, vwS, vwS_low, ES_id);
-	}
-	catch (std::exception e)
-	{
-		printf("\nElasticSearch:::release error:%s", e.what());
-	}
-}
-
 void scoreNormELK(std::vector<float>& scoresELK, int totalNumELK, std::vector<float>& normELKScore)
 {
 	double sum = 0;
-	int forLimit = 0;
+	int forLimit;
 	forLimit = totalNumELK < QUERY_RETURN_SIZE ? totalNumELK : QUERY_RETURN_SIZE;
 	for (int i = 0; i < forLimit; i++)
 		sum += scoresELK[i];
@@ -202,7 +170,7 @@ void scoreNormELK(std::vector<float>& scoresELK, int totalNumELK, std::vector<fl
 }
 
 void QueryRawImage(Path myPath, ELK_params myES, TVoctreeVLFeat* VT, std::string dscPath, Image_Info myIm,
-	uchar_descriptors *my_desc, std::vector<std::string> &testSet, std::vector<float> &scoresPP, std::vector<float> &scoresELK)
+                   uchar_descriptors *my_desc, std::vector<std::string> & returnedFileNames, std::vector<float> &scoresPP, std::vector<float> &scoresELK)
 {
 	unsigned int * vwI = new unsigned int[my_desc->GetNumOfDescriptors()];
 	json_t* myJSON = json_object();
@@ -215,7 +183,7 @@ void QueryRawImage(Path myPath, ELK_params myES, TVoctreeVLFeat* VT, std::string
 	{
 		try
 		{
-			VT->quantize_multi(vwI, my_desc->GetUCHAR_descriptors(), my_desc->GetNumOfDescriptors(), 61);
+			VT->quantize_multi(vwI, my_desc->GetUCHAR_descriptors(), my_desc->GetNumOfDescriptors(), my_desc->GetFeatureSize());
 			for (unsigned int s = 0; s < my_desc->GetNumOfDescriptors(); s++)
 				vwS += " " + int2string(int(vwI[s]));
 			/*Temporary words writing*/
@@ -232,15 +200,16 @@ void QueryRawImage(Path myPath, ELK_params myES, TVoctreeVLFeat* VT, std::string
 			if (vwS != "")
 			{
 				GetJSON__QueryImage(myJSON, vwS, "words_string");
+				
 				//TODO: add scores at ELK_PostQuery
-				ELK_PostQuery(myES, myJSON, myIm, testSet, dscPathsV, scoresELK, totalNumELK);
+				ELK_PostQuery(myES, myJSON, myIm, returnedFileNames, dscPathsV, scoresELK, totalNumELK);
 				//ELK score filtering//////////////////////////
 				if (totalNumELK > 0)
 				{
 					std::vector<float> normELKScore;
 					scoreNormELK(scoresELK, totalNumELK, normELKScore);
-					////////////////////////////////////////////////
-					postProcess(my_desc, dscPathsV, testSet, scoresPP, normELKScore.size());
+					// Post Process
+					postProcess(my_desc, dscPathsV, returnedFileNames, scoresPP, normELKScore.size());
 				}
 			}
 		}
@@ -267,7 +236,7 @@ int postProcess(uchar_descriptors *query, std::vector<std::string> dscV, std::ve
 	std::vector<float> scoresSorted;
 	std::vector<int> scoreRank;
 	Mat descriptorQuery;
-	query->Get_CVDescriptors(descriptorQuery);
+	query->CopyOpencvDescriptors(descriptorQuery);
 	std::vector<Point2f> coordsQuery = query->GetCoords();
 	//std::vector<float> oriQuery, scaleQuery;
 	//TODO: runOptions Create
@@ -297,7 +266,7 @@ int postProcess(uchar_descriptors *query, std::vector<std::string> dscV, std::ve
 			{
 				matchDsc.setResizeImage(true);
 				matchDsc.ExtractAKAZE();
-				matchDsc.Get_CVDescriptors(descriptorMatch);
+				matchDsc.CopyOpencvDescriptors(descriptorMatch);
 			}
 
 			std::vector<Point2f> coordsMatch = matchDsc.GetCoords();
@@ -306,18 +275,19 @@ int postProcess(uchar_descriptors *query, std::vector<std::string> dscV, std::ve
 			std::vector<DMatch > matches, good_matches;
 			if (descriptorQuery.type() == 0)  descriptorQuery.convertTo(descriptorQuery, CV_32F);
 			if (descriptorMatch.type() == 0)  descriptorMatch.convertTo(descriptorMatch, CV_32F);
-			
+			float gm_dist = (query->GetFeatureType() == AKAZE_FEATS) ? GOOD_MATCHES_DISTANCE__AKAZE : GOOD_MATCHES_DISTANCE__EZSIFT;
 			if (descriptorQuery.type() == descriptorMatch.type() && descriptorQuery.cols == descriptorMatch.cols)
-				cv_FLANN_Matcher(descriptorQuery, descriptorMatch, matches, good_matches);
+				cv_FLANN_Matcher(descriptorQuery, descriptorMatch, matches, good_matches, gm_dist);
 			// TODO : compute H using estimate_homography - shown below
 			// DONE : compute similarity
-			double score;
-			cv_GeoRR_Scoring_Location(coordsQuery, coordsMatch, good_matches, score, T_SCORE_FGC_WEIGHTED);
+			double score = 0 ;
+			if (good_matches.size()> MIN_GOOD_MATCHES)
+				cv_GeoRR_Scoring_Location(coordsQuery, coordsMatch, good_matches, score, T_SCORE_FGC_WEIGHTED);
 #if defined _OPENMP
 #pragma omp ordered
 #endif
 			{
-				scores.push_back(score);
+					scores.push_back(score);
 			}
 
 			matches.clear();
@@ -357,15 +327,6 @@ int postProcess(uchar_descriptors *query, std::vector<std::string> dscV, std::ve
 
 void ImageSpliter(const cv::Mat Input, std::vector<cv::Mat>& OutputVector, std::vector<std::string>& OutputNames, int maxSize)
 {
-	int height = Input.rows;
-	int widht = Input.cols;
-
-	int hNum = (height / (maxSize*0.7)) + 1;
-	int wNum = (widht / (maxSize*0.7)) + 1;
-
-	int hStart = 0;
-	int hStep = maxSize;
-
 	if (Input.rows > maxSize || Input.cols > maxSize)
 	{
 		int h = Input.rows;
@@ -374,14 +335,23 @@ void ImageSpliter(const cv::Mat Input, std::vector<cv::Mat>& OutputVector, std::
 		double ws = w*1.0 / maxSize;
 		cv::Mat reszImg;
 		if (h>w)
-			cv::resize(Input, reszImg, cv::Size(w / hs, h / hs), 0, 0, CV_INTER_LINEAR);
+			cv::resize(Input, reszImg, cv::Size(w / hs, h / hs), 0, 0, CV_INTER_AREA);
 		else
-			cv::resize(Input, reszImg, cv::Size(w / ws, h / ws), 0, 0, CV_INTER_LINEAR);
+			cv::resize(Input, reszImg, cv::Size(w / ws, h / ws), 0, 0, CV_INTER_AREA);
 
 		OutputVector.push_back(reszImg);
 		OutputNames.push_back("resized");
 	}
 
+
+	/*
+	int height = Input.rows;
+	int widht = Input.cols;
+	int hNum = (height / (maxSize*0.7)) + 1;
+	int wNum = (widht / (maxSize*0.7)) + 1;
+
+	int hStart = 0;
+	int hStep = maxSize;
 	for (int h_i = 0; h_i < hNum ; h_i++)
 	{
 		if ((hStart + hStep) > height)
@@ -405,7 +375,7 @@ void ImageSpliter(const cv::Mat Input, std::vector<cv::Mat>& OutputVector, std::
 		hStart += (maxSize*0.7);
 		if (h_i == hNum - 2)
 			hStep = height - hStart;
-	}
+	}*/
 
 
 }
@@ -416,5 +386,30 @@ void scoreWeighting(std::vector<float> scoresPP, std::vector<float> scoresELK, s
 	{
 		float wScore = (0.3 * scoresELK[l]) + (0.7 * scoresPP[l]);
 		scoresW.push_back(wScore);
+	}
+}
+
+std::string currentDateTime()
+{
+	std::chrono::time_point<std::chrono::system_clock>  now;
+	now = std::chrono::system_clock::now();
+	std::time_t end_time = std::chrono::system_clock::to_time_t(now);
+	
+	char cr[26];
+	ctime_s(cr, sizeof cr, &end_time);
+	cr[24] = '\0';
+	std::string str(cr);
+	return str;
+}
+
+void printErrorToLog(Path myPath, std::ofstream &ofs, std::vector<std::string> imgList, int i, std::basic_string<char> imgPathDUMP, uchar_descriptors myDesc, std::string errCmd)
+{
+	try
+	{
+		ofs << currentDateTime() << " : " << imgPathDUMP << " : " << errCmd <<"\n";
+	}
+	catch (std::exception e)
+	{
+		printf("\nMain:::extract akaze and write::log writer error::%s", e.what());
 	}
 }
