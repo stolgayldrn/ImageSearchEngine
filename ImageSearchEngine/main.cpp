@@ -724,10 +724,10 @@ int main(int argc, char *argv[])
 	// Downsampling Analyzer
 	///*
 	std::vector<DMatch > gm_12, gm_13, gm_23;
-	std::string imgPath = "C:\\Users\\m.alsadi\\Desktop\\DownSamplingAnalyzer\\1.jpg";
+	std::string imgPath = "C:\\Users\\m.alsadi\\Desktop\\DownSamplingAnalyzer\\3.jpg";
 	std::vector<DMatch > inMatches;
 	auto img1 = imread(imgPath.c_str());
-	uchar_descriptors::resizeImage(&img1, 1200);
+	uchar_descriptors::resizeImage(&img1, MAX_IMAGE_SIZE);
 	uchar_descriptors descriptor_1(imgPath.c_str(), img1, "", AKAZE_FEATS);
 	findIntersectedFeatures(imgPath.c_str(),img1, descriptor_1, inMatches);
 	/*downsamplingAnalyzer(imgPath, 1200, 800, gm_12);

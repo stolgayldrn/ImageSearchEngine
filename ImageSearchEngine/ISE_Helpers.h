@@ -4,7 +4,7 @@
 #include "helpers2.h"
 #include "postProc.h"
 #include <vector>
-#include "descriptors.h"
+#include "uchar_descriptors.h"
 #include <omp.h>
 #include "ES_image.h"
 #include "TVoctreeVLFeat.h"
